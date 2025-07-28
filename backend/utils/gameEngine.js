@@ -1,290 +1,318 @@
-const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
-const RANKS = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-
+// backend/utils/gameEngine.js - Matatu Game Engine
 class MatatuGameEngine {
   constructor(gameType = 'casual') {
-    this.gameType = gameType; // 'casual', 'tournament', 'ranked'
-    this.deck = [];
-    this.discardPile = [];
+    this.gameType = gameType;
+    this.deck = this.createDeck();
     this.players = new Map();
-    this.currentPlayer = null;
-    this.gameStarted = false;
-    this.gameEnded = false;
-    this.winner = null;
+    this.currentPlayer = 0;
+    this.direction = 1; // 1 for clockwise, -1 for counterclockwise
+    this.discardPile = [];
+    this.drawPile = [];
+    this.gameState = 'waiting'; // waiting, active, finished
+    this.specialRules = this.initializeSpecialRules();
+    this.moves = [];
     this.startTime = null;
-    this.endTime = null;
-    this.specialRules = {
-      matatuCallRequired: true,
-      timeLimit: gameType === 'tournament' ? 300 : 0, // 5 minutes for tournaments
-      spectatorMode: gameType === 'tournament'
-    };
   }
 
   createDeck() {
+    const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+    const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
     const deck = [];
-    SUITS.forEach(suit => {
-      RANKS.forEach(rank => {
-        deck.push({ 
-          suit, 
-          rank, 
-          id: `${rank}_${suit}`,
-          points: this.getCardPoints(rank)
+
+    suits.forEach(suit => {
+      ranks.forEach(rank => {
+        deck.push({
+          suit,
+          rank,
+          value: this.getCardValue(rank),
+          isSpecial: this.isSpecialCard(rank, suit)
         });
       });
     });
+
     return this.shuffleDeck(deck);
   }
 
-  getCardPoints(rank) {
-    const pointValues = {
-      '7': 7, '8': 8, '9': 9, '10': 10,
-      'J': 11, 'Q': 12, 'K': 13, 'A': 14
+  getCardValue(rank) {
+    const values = {
+      '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8,
+      '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
     };
-    return pointValues[rank] || 0;
+    return values[rank];
+  }
+
+  isSpecialCard(rank, suit) {
+    // Matatu special cards (customizable based on house rules)
+    const specialCards = ['8', 'J', 'A']; // 8 = skip, J = reverse, A = draw 4
+    return specialCards.includes(rank);
+  }
+
+  initializeSpecialRules() {
+    return {
+      '8': { action: 'skip', description: 'Skip next player' },
+      'J': { action: 'reverse', description: 'Reverse play direction' },
+      'A': { action: 'draw', amount: 4, description: 'Next player draws 4 cards' },
+      '2': { action: 'draw', amount: 2, description: 'Next player draws 2 cards' }
+    };
   }
 
   shuffleDeck(deck) {
-    const shuffled = [...deck];
-    for (let i = shuffled.length - 1; i > 0; i--) {
+    for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      [deck[i], deck[j]] = [deck[j], deck[i]];
     }
-    return shuffled;
+    return deck;
   }
 
-  addPlayer(playerId, playerData) {
-    if (this.players.size >= 4) {
-      throw new Error('Game is full (max 4 players)');
+  startGame(playerIds) {
+    if (playerIds.length < 2 || playerIds.length > 6) {
+      throw new Error('Game requires 2-6 players');
     }
 
-    this.players.set(playerId, {
-      id: playerId,
-      username: playerData.username,
-      hand: [],
-      points: playerData.points || 0,
-      level: playerData.level || 'Beginner',
-      hasCalledMatatu: false,
-      timeLeft: this.specialRules.timeLimit,
-      connected: true
-    });
-
-    return this.players.get(playerId);
-  }
-
-  startGame() {
-    if (this.players.size < 2) {
-      throw new Error('Need at least 2 players to start');
-    }
-
-    this.deck = this.createDeck();
-    this.gameStarted = true;
-    this.startTime = new Date();
-
-    // Deal cards to players (5 cards each)
-    const playerIds = Array.from(this.players.keys());
-    playerIds.forEach(playerId => {
-      const player = this.players.get(playerId);
-      player.hand = this.deck.splice(0, 5);
-    });
-
-    // Set top card
-    this.discardPile.push(this.deck.pop());
-    this.currentPlayer = playerIds[0];
-
-    return this.getGameState();
-  }
-
-  playCard(playerId, cardIndex) {
-    if (!this.gameStarted || this.gameEnded) {
-      throw new Error('Game not in progress');
-    }
-
-    if (this.currentPlayer !== playerId) {
-      throw new Error('Not your turn');
-    }
-
-    const player = this.players.get(playerId);
-    if (!player || cardIndex >= player.hand.length) {
-      throw new Error('Invalid card');
-    }
-
-    const card = player.hand[cardIndex];
-    const topCard = this.getTopCard();
-
-    if (!this.isValidMove(card, topCard)) {
-      throw new Error('Invalid move - card must match suit or rank');
-    }
-
-    // Play the card
-    player.hand.splice(cardIndex, 1);
-    this.discardPile.push(card);
-
-    // Check for Matatu call requirement
-    if (player.hand.length === 1 && !player.hasCalledMatatu && this.specialRules.matatuCallRequired) {
-      // Player must call Matatu or draw penalty card
-      player.hand.push(this.deck.pop());
-    }
-
-    // Check win condition
-    if (player.hand.length === 0) {
-      this.endGame(playerId);
-      return { gameOver: true, winner: playerId };
-    }
-
-    // Handle special cards
-    this.handleSpecialCard(card, playerId);
-
-    // Move to next player
-    this.nextTurn();
-
-    return { success: true, gameState: this.getGameState() };
-  }
-
-  callMatatu(playerId) {
-    const player = this.players.get(playerId);
-    if (player && player.hand.length <= 2) {
-      player.hasCalledMatatu = true;
-      return true;
-    }
-    return false;
-  }
-
-  drawCard(playerId) {
-    if (this.currentPlayer !== playerId) {
-      throw new Error('Not your turn');
-    }
-
-    const player = this.players.get(playerId);
-    if (this.deck.length === 0) {
-      this.reshuffleDiscardPile();
-    }
-
-    if (this.deck.length > 0) {
-      player.hand.push(this.deck.pop());
-      this.nextTurn();
-      return { success: true, card: player.hand[player.hand.length - 1] };
-    }
-
-    throw new Error('No cards available');
-  }
-
-  isValidMove(card, topCard) {
-    if (!topCard) return true;
-    return card.suit === topCard.suit || card.rank === topCard.rank;
-  }
-
-  handleSpecialCard(card, playerId) {
-    switch (card.rank) {
-      case 'A': // Ace - skip next player
-        this.nextTurn();
-        break;
-      case 'K': // King - reverse direction (skip in 2-player)
-        if (this.players.size > 2) {
-          // Implement direction reversal for multiplayer
-        } else {
-          this.nextTurn();
-        }
-        break;
-      case '8': // Eight - play again
-        // Current player keeps turn
-        break;
-      case 'J': // Jack - wild card (handled in frontend)
-        break;
-    }
-  }
-
-  nextTurn() {
-    const playerIds = Array.from(this.players.keys());
-    const currentIndex = playerIds.indexOf(this.currentPlayer);
-    const nextIndex = (currentIndex + 1) % playerIds.length;
-    this.currentPlayer = playerIds[nextIndex];
-  }
-
-  reshuffleDiscardPile() {
-    if (this.discardPile.length <= 1) return;
-
-    const topCard = this.discardPile.pop();
-    this.deck = this.shuffleDeck(this.discardPile);
-    this.discardPile = [topCard];
-  }
-
-  endGame(winnerId) {
-    this.gameEnded = true;
-    this.winner = winnerId;
-    this.endTime = new Date();
-
-    // Calculate points and rewards
-    const winner = this.players.get(winnerId);
-    const gameResults = this.calculateGameResults();
-
-    return gameResults;
-  }
-
-  calculateGameResults() {
-    const results = {
-      winner: this.winner,
-      duration: this.endTime - this.startTime,
-      players: []
-    };
-
-    // Calculate points for each player
-    this.players.forEach((player, playerId) => {
-      const handPoints = player.hand.reduce((sum, card) => sum + card.points, 0);
-      const isWinner = playerId === this.winner;
-      
-      let pointsChange = 0;
-      if (isWinner) {
-        // Winner gets points based on remaining cards in opponents' hands
-        const opponentPoints = Array.from(this.players.values())
-          .filter(p => p.id !== playerId)
-          .reduce((sum, p) => sum + p.hand.reduce((s, c) => s + c.points, 0), 0);
-        pointsChange = Math.min(opponentPoints * 10, 1000); // Max 1000 points per game
-      } else {
-        // Losers lose points based on their remaining cards
-        pointsChange = -Math.min(handPoints * 5, 500); // Max loss 500 points
-      }
-
-      results.players.push({
+    this.gameState = 'active';
+    this.startTime = Date.now();
+    
+    // Initialize players
+    playerIds.forEach((playerId, index) => {
+      this.players.set(playerId, {
         id: playerId,
-        username: player.username,
-        position: isWinner ? 1 : 2,
-        pointsChange,
-        cardsRemaining: player.hand.length,
-        handPoints
+        hand: [],
+        position: index,
+        stats: {
+          cardsPlayed: 0,
+          specialCardsPlayed: 0,
+          turnsSkipped: 0
+        }
       });
     });
 
-    return results;
+    // Deal initial cards
+    this.dealInitialCards();
+    
+    // Set up draw pile and discard pile
+    this.drawPile = [...this.deck];
+    const firstCard = this.drawPile.pop();
+    this.discardPile.push(firstCard);
+
+    return {
+      gameStarted: true,
+      firstCard: firstCard,
+      currentPlayer: this.getCurrentPlayerId()
+    };
+  }
+
+  dealInitialCards() {
+    const cardsPerPlayer = 7; // Standard Matatu
+    const playerIds = Array.from(this.players.keys());
+
+    for (let i = 0; i < cardsPerPlayer; i++) {
+      playerIds.forEach(playerId => {
+        if (this.deck.length > 0) {
+          const card = this.deck.pop();
+          this.players.get(playerId).hand.push(card);
+        }
+      });
+    }
+  }
+
+  getCurrentPlayerId() {
+    const playerIds = Array.from(this.players.keys());
+    return playerIds[this.currentPlayer];
+  }
+
+  canPlayCard(playerId, cardIndex) {
+    const player = this.players.get(playerId);
+    if (!player || cardIndex >= player.hand.length) {
+      return { valid: false, reason: 'Invalid card selection' };
+    }
+
+    if (this.getCurrentPlayerId() !== playerId) {
+      return { valid: false, reason: 'Not your turn' };
+    }
+
+    const card = player.hand[cardIndex];
+    const topCard = this.discardPile[this.discardPile.length - 1];
+
+    // Basic matching rules: same suit or same rank
+    if (card.suit === topCard.suit || card.rank === topCard.rank) {
+      return { valid: true };
+    }
+
+    return { valid: false, reason: 'Card does not match suit or rank' };
+  }
+
+  playCard(playerId, cardIndex, chosenSuit = null) {
+    const validation = this.canPlayCard(playerId, cardIndex);
+    if (!validation.valid) {
+      throw new Error(validation.reason);
+    }
+
+    const player = this.players.get(playerId);
+    const card = player.hand.splice(cardIndex, 1)[0];
+    
+    // Add to discard pile
+    this.discardPile.push(card);
+    
+    // Update player stats
+    player.stats.cardsPlayed++;
+    if (card.isSpecial) {
+      player.stats.specialCardsPlayed++;
+    }
+
+    // Record move
+    this.moves.push({
+      playerId,
+      card,
+      timestamp: Date.now(),
+      gameTime: Date.now() - this.startTime
+    });
+
+    // Handle special card effects
+    let gameEffects = this.handleSpecialCard(card, chosenSuit);
+
+    // Check for win condition
+    if (player.hand.length === 0) {
+      this.gameState = 'finished';
+      return {
+        cardPlayed: card,
+        winner: playerId,
+        gameOver: true,
+        duration: Date.now() - this.startTime,
+        effects: gameEffects
+      };
+    }
+
+    // Move to next player (unless skipped by special card)
+    if (!gameEffects.skipNextPlayer) {
+      this.nextPlayer();
+    }
+
+    return {
+      cardPlayed: card,
+      currentPlayer: this.getCurrentPlayerId(),
+      gameOver: false,
+      effects: gameEffects
+    };
+  }
+
+  handleSpecialCard(card, chosenSuit = null) {
+    const effects = {
+      skipNextPlayer: false,
+      reverseDirection: false,
+      drawCards: 0,
+      suitChanged: null
+    };
+
+    const rule = this.specialRules[card.rank];
+    if (!rule) return effects;
+
+    switch (rule.action) {
+      case 'skip':
+        effects.skipNextPlayer = true;
+        this.nextPlayer(); // Skip the next player
+        break;
+        
+      case 'reverse':
+        this.direction *= -1;
+        effects.reverseDirection = true;
+        break;
+        
+      case 'draw':
+        effects.drawCards = rule.amount;
+        // Next player draws cards
+        this.nextPlayer();
+        const nextPlayerId = this.getCurrentPlayerId();
+        const nextPlayer = this.players.get(nextPlayerId);
+        
+        for (let i = 0; i < rule.amount && this.drawPile.length > 0; i++) {
+          nextPlayer.hand.push(this.drawPile.pop());
+        }
+        
+        effects.skipNextPlayer = true; // Skip their turn after drawing
+        break;
+    }
+
+    return effects;
+  }
+
+  nextPlayer() {
+    const playerCount = this.players.size;
+    this.currentPlayer = (this.currentPlayer + this.direction + playerCount) % playerCount;
+  }
+
+  drawCard(playerId) {
+    if (this.getCurrentPlayerId() !== playerId) {
+      throw new Error('Not your turn');
+    }
+
+    const player = this.players.get(playerId);
+    
+    if (this.drawPile.length === 0) {
+      // Reshuffle discard pile (except top card) back into draw pile
+      if (this.discardPile.length <= 1) {
+        throw new Error('No cards available to draw');
+      }
+      
+      const topCard = this.discardPile.pop();
+      this.drawPile = this.shuffleDeck([...this.discardPile]);
+      this.discardPile = [topCard];
+    }
+
+    const drawnCard = this.drawPile.pop();
+    player.hand.push(drawnCard);
+    
+    // Move to next player
+    this.nextPlayer();
+
+    return {
+      cardDrawn: true,
+      currentPlayer: this.getCurrentPlayerId()
+    };
   }
 
   getGameState() {
     return {
-      gameStarted: this.gameStarted,
-      gameEnded: this.gameEnded,
-      currentPlayer: this.currentPlayer,
-      topCard: this.getTopCard(),
-      players: Array.from(this.players.values()).map(p => ({
-        id: p.id,
-        username: p.username,
-        cardCount: p.hand.length,
-        points: p.points,
-        level: p.level,
-        hasCalledMatatu: p.hasCalledMatatu,
-        connected: p.connected
+      gameState: this.gameState,
+      currentPlayer: this.getCurrentPlayerId(),
+      discardPile: this.discardPile.slice(-1), // Only show top card
+      drawPileCount: this.drawPile.length,
+      direction: this.direction,
+      players: Array.from(this.players.entries()).map(([id, player]) => ({
+        id,
+        handSize: player.hand.length,
+        stats: player.stats
       })),
-      deckCount: this.deck.length,
-      winner: this.winner,
-      gameType: this.gameType
+      moves: this.moves.length,
+      gameTime: this.startTime ? Date.now() - this.startTime : 0
     };
-  }
-
-  getTopCard() {
-    return this.discardPile.length > 0 ? this.discardPile[this.discardPile.length - 1] : null;
   }
 
   getPlayerHand(playerId) {
     const player = this.players.get(playerId);
     return player ? player.hand : [];
+  }
+
+  getGameResults() {
+    if (this.gameState !== 'finished') {
+      return null;
+    }
+
+    const results = Array.from(this.players.entries()).map(([id, player]) => ({
+      playerId: id,
+      position: player.hand.length === 0 ? 1 : player.hand.length + 1,
+      cardsRemaining: player.hand.length,
+      stats: player.stats
+    }));
+
+    // Sort by position
+    results.sort((a, b) => a.position - b.position);
+
+    return {
+      winner: results[0].playerId,
+      results,
+      totalMoves: this.moves.length,
+      gameDuration: Date.now() - this.startTime
+    };
   }
 }
 
