@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Matatu Online</title>
+
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#044a42;color:#fff;margin:0;padding:0;display:flex;justify-content:center;align-items:flex-start;height:100vh}
+    #container{max-width:600px;width:100%;padding:20px}
+    .hidden{display:none}
+    #hand .card{display:inline-block;background:#fff;color:#000;padding:8px 12px;margin:4px;border-radius:4px;cursor:pointer;font-weight:bold}
+    #chatBox{background:#022f2a;padding:10px;height:140px;overflow-y:auto;border-radius:4px;margin-top:10px}
+    button{background:#0a8d78;color:#fff;border:none;padding:8px 12px;border-radius:4px;margin:4px;cursor:pointer}
+    input{padding:8px;border-radius:4px;border:none;margin:4px}
+  </style>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+  <div id="container">
+    <!-- Lobby -->
+    <section id="lobby">
+      <h2>Matatu Lobby</h2>
+      <button onclick="createRoom()">Create Room</button>
+      <p style="margin:6px 0">or join one</p>
+      <input id="roomCode" placeholder="Room code">
+      <button onclick="joinRoom()">Join</button>
+    </section>
+
+    <!-- Game screen -->
+    <section id="game" class="hidden">
+      <h3 id="roomLabel"></h3>
+      <p>Top card: <span id="topCard"></span></p>
+
+      <div id="hand"></div>
+      <button onclick="drawCard()">Draw card</button>
+
+      <div id="chatBox"></div>
+      <input id="chatInput" placeholder="Message…">
+      <button onclick="sendChat()">Send</button>
+    </section>
+  </div>
+
+  <script src="client.js"></script>
+</body>
+</html>
