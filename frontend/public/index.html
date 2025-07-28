@@ -1,47 +1,2183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Matatu Online</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matatu Online - Professional Edition</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    
+    <!-- External Dependencies -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --background-gradient: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            --accent-gold: #ffd700;
+            --accent-cyan: #48dbfb;
+            --success-green: #10ac84;
+            --warning-orange: #ee5a24;
+            --error-red: #ff3838;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
 
-  <style>
-    body{font-family:Arial,Helvetica,sans-serif;background:#044a42;color:#fff;margin:0;padding:0;display:flex;justify-content:center;align-items:flex-start;height:100vh}
-    #container{max-width:600px;width:100%;padding:20px}
-    .hidden{display:none}
-    #hand .card{display:inline-block;background:#fff;color:#000;padding:8px 12px;margin:4px;border-radius:4px;cursor:pointer;font-weight:bold}
-    #chatBox{background:#022f2a;padding:10px;height:140px;overflow-y:auto;border-radius:4px;margin-top:10px}
-    button{background:#0a8d78;color:#fff;border:none;padding:8px 12px;border-radius:4px;margin:4px;cursor:pointer}
-    input{padding:8px;border-radius:4px;border:none;margin:4px}
-  </style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--background-gradient);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--background-gradient);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 80px;
+            height: 80px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .loading-progress {
+            width: 200px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            background: var(--primary-gradient);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Header */
+        .header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 15px 30px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .points-display {
+            background: var(--primary-gradient);
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .user-avatar:hover {
+            transform: scale(1.1);
+        }
+
+        /* Navigation */
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            background: var(--glass-bg);
+            padding: 10px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+        }
+
+        .nav-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-tab.active {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .nav-tab:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* Sections */
+        .section {
+            display: none;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Auth Section */
+        .auth-container {
+            max-width: 400px;
+            margin: 50px auto;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .auth-header h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            position: relative;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 15px;
+            background: var(--glass-bg);
+            border: 2px solid var(--glass-border);
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(72, 219, 251, 0.3);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .form-error {
+            color: var(--error-red);
+            font-size: 0.9rem;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .btn {
+            background: var(--primary-gradient);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--glass-border);
+            color: var(--text-primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--glass-bg);
+            border-color: var(--accent-cyan);
+        }
+
+        /* Lobby Section */
+        .lobby-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .lobby-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            transition: transform 0.3s ease;
+        }
+
+        .lobby-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .lobby-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--accent-cyan);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .quick-match-section {
+            text-align: center;
+        }
+
+        .skill-selector {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .skill-option {
+            padding: 8px 16px;
+            background: var(--glass-bg);
+            border: 2px solid var(--glass-border);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .skill-option.selected {
+            background: var(--primary-gradient);
+            border-color: transparent;
+            color: white;
+        }
+
+        /* Game Table */
+        .game-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 40px;
+            margin-bottom: 30px;
+            position: relative;
+            min-height: 600px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+        }
+
+        .game-timer {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            color: var(--accent-gold);
+        }
+
+        .timer-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: conic-gradient(var(--accent-gold) 0deg, transparent 0deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .opponents-container {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+        }
+
+        .opponent {
+            text-align: center;
+            background: var(--glass-bg);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            min-width: 120px;
+        }
+
+        .opponent-name {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--accent-cyan);
+        }
+
+        .opponent-level {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .opponent-cards {
+            display: flex;
+            gap: 3px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .table-center {
+            position: relative;
+            width: 250px;
+            height: 250px;
+            margin: 40px auto;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .deck-pile {
+            position: absolute;
+            left: -120px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .discard-pile {
+            position: absolute;
+            right: -120px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .pile-label {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        /* Card Styles */
+        .card {
+            width: 70px;
+            height: 100px;
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            font-weight: bold;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            user-select: none;
+        }
+
+        .card.large {
+            width: 90px;
+            height: 130px;
+        }
+
+        .card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+            z-index: 10;
+        }
+
+        .card.playable {
+            box-shadow: 0 0 20px var(--accent-gold);
+            border-color: var(--accent-gold);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .card.back {
+            background: linear-gradient(145deg, #4a90e2, #357abd);
+            color: white;
+        }
+
+        .card.back::before {
+            content: '🃏';
+            font-size: 24px;
+            opacity: 0.8;
+        }
+
+        .card-rank {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .card.large .card-rank {
+            font-size: 18px;
+        }
+
+        .card-suit {
+            font-size: 18px;
+            margin-top: 2px;
+        }
+
+        .card.large .card-suit {
+            font-size: 24px;
+        }
+
+        .card.hearts .card-suit,
+        .card.diamonds .card-suit,
+        .card.hearts .card-rank,
+        .card.diamonds .card-rank {
+            color: #e74c3c;
+        }
+
+        .card.clubs .card-suit,
+        .card.spades .card-suit,
+        .card.clubs .card-rank,
+        .card.spades .card-rank {
+            color: #2c3e50;
+        }
+
+        /* Player Hand */
+        .player-hand-container {
+            margin-top: 30px;
+        }
+
+        .hand-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 0 20px;
+        }
+
+        .hand-label {
+            font-weight: bold;
+            color: var(--accent-cyan);
+        }
+
+        .matatu-button {
+            background: var(--accent-gold);
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        .matatu-button.show {
+            display: block;
+            animation: bounce 1s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .player-hand {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            min-height: 140px;
+            align-items: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            border: 2px solid transparent;
+            transition: border-color 0.3s ease;
+        }
+
+        .player-hand.my-turn {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+
+        /* Game Controls */
+        .game-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* Tournament Section */
+        .tournament-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .tournament-header h2 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tournament-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .tournament-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            transition: transform 0.3s ease;
+        }
+
+        .tournament-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .tournament-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: var(--primary-gradient);
+            color: white;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .tournament-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--accent-cyan);
+        }
+
+        .tournament-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+            font-size: 0.9rem;
+        }
+
+        .tournament-info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .tournament-info-label {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .tournament-info-value {
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .tournament-progress {
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-gradient);
+            transition: width 0.3s ease;
+        }
+
+        /* Chat System */
+        .chat-container {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            width: 320px;
+            height: 400px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            transform: translateX(calc(100% + 40px));
+            transition: transform 0.3s ease;
+        }
+
+        .chat-container.open {
+            transform: translateX(0);
+        }
+
+        .chat-toggle {
+            position: fixed;
+            right: 20px;
+            bottom: 440px;
+            width: 50px;
+            height: 50px;
+            background: var(--primary-gradient);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            z-index: 1001;
+            transition: all 0.3s ease;
+        }
+
+        .chat-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .chat-header {
+            background: var(--primary-gradient);
+            padding: 15px;
+            border-radius: 20px 20px 0 0;
+            font-weight: bold;
+            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chat-message {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 12px;
+            border-radius: 15px;
+            word-wrap: break-word;
+            max-width: 85%;
+            position: relative;
+        }
+
+        .chat-message.own {
+            background: var(--primary-gradient);
+            align-self: flex-end;
+            color: white;
+        }
+
+        .chat-message.system {
+            background: rgba(255, 215, 0, 0.2);
+            color: var(--accent-gold);
+            text-align: center;
+            align-self: center;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+
+        .chat-username {
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 3px;
+            color: var(--accent-cyan);
+        }
+
+        .chat-input-container {
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .chat-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 10px 15px;
+            color: white;
+            outline: none;
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .chat-send {
+            background: var(--accent-cyan);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .chat-send:hover {
+            background: #0abde3;
+            transform: scale(1.1);
+        }
+
+        /* Soko 24 Integration */
+        .soko-banner {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .soko-banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="white" opacity="0.1"/></svg>') repeat;
+            animation: float 20s linear infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateX(-100px); }
+            100% { transform: translateX(100px); }
+        }
+
+        .soko-banner h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .soko-banner p {
+            margin-bottom: 15px;
+            color: white;
+            opacity: 0.9;
+        }
+
+        .soko-button {
+            background: white;
+            color: #333;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .soko-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .nav-container {
+                padding: 10px;
+            }
+
+            .nav-tabs {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .lobby-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .game-container {
+                padding: 20px;
+            }
+
+            .opponents-container {
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+
+            .table-center {
+                width: 200px;
+                height: 200px;
+            }
+
+            .deck-pile, .discard-pile {
+                position: static;
+                transform: none;
+                margin: 10px;
+            }
+
+            .card {
+                width: 50px;
+                height: 70px;
+            }
+
+            .card-rank {
+                font-size: 10px;
+            }
+
+            .card-suit {
+                font-size: 12px;
+            }
+
+            .player-hand {
+                gap: 5px;
+            }
+
+            .chat-container {
+                position: fixed;
+                bottom: 0;
+                right: 0;
+                left: 0;
+                width: 100%;
+                height: 50vh;
+                border-radius: 20px 20px 0 0;
+                transform: translateY(100%);
+            }
+
+            .chat-container.open {
+                transform: translateY(0);
+            }
+
+            .chat-toggle {
+                bottom: 20px;
+                right: 20px;
+            }
+
+            .tournament-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Animations */
+        @keyframes cardDeal {
+            from {
+                transform: scale(0) rotate(180deg);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        .card.dealing {
+            animation: cardDeal 0.6s ease-out;
+        }
+
+        @keyframes cardPlay {
+            0% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-30px) scale(1.1); }
+            100% { transform: translateY(-200px) scale(0) rotate(360deg); opacity: 0; }
+        }
+
+        .card.playing {
+            animation: cardPlay 0.8s ease-out forwards;
+        }
+
+        /* Notification System */
+        .notification {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            max-width: 300px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            z-index: 2000;
+            animation: slideInRight 0.5s ease;
+        }
+
+        .notification.success {
+            background: linear-gradient(45deg, #10ac84, #00d2d3);
+        }
+
+        .notification.error {
+            background: linear-gradient(45deg, #ff3838, #ff6b6b);
+        }
+
+        .notification.info {
+            background: linear-gradient(45deg, #0abde3, #48dbfb);
+        }
+
+        .notification.warning {
+            background: linear-gradient(45deg, #ee5a24, #feca57);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gap-10 {
+            gap: 10px;
+        }
+
+        .gap-20 {
+            gap: 20px;
+        }
+    </style>
 </head>
 <body>
-  <div id="container">
-    <!-- Lobby -->
-    <section id="lobby">
-      <h2>Matatu Lobby</h2>
-      <button onclick="createRoom()">Create Room</button>
-      <p style="margin:6px 0">or join one</p>
-      <input id="roomCode" placeholder="Room code">
-      <button onclick="joinRoom()">Join</button>
-    </section>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Matatu Online...</div>
+        <div class="loading-progress">
+            <div id="loadingProgressBar" class="loading-progress-bar"></div>
+        </div>
+    </div>
 
-    <!-- Game screen -->
-    <section id="game" class="hidden">
-      <h3 id="roomLabel"></h3>
-      <p>Top card: <span id="topCard"></span></p>
+    <!-- Header -->
+    <header id="header" class="header hidden">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-spade"></i>
+                Matatu Online
+            </div>
+            <div id="userInfo" class="user-info hidden">
+                <div class="points-display">
+                    <i class="fas fa-coins"></i>
+                    <span id="userPoints">0</span> Points
+                </div>
+                <div class="user-avatar" onclick="toggleUserMenu()">
+                    <i class="fas fa-user"></i>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+            </div>
+        </div>
+    </header>
 
-      <div id="hand"></div>
-      <button onclick="drawCard()">Draw card</button>
+    <!-- Main Container -->
+    <div class="nav-container">
+        <!-- Navigation -->
+        <nav id="navigation" class="nav-tabs hidden">
+            <button class="nav-tab active" onclick="showSection('lobby')">
+                <i class="fas fa-home"></i> Lobby
+            </button>
+            <button class="nav-tab" onclick="showSection('game')">
+                <i class="fas fa-cards"></i> Game
+            </button>
+            <button class="nav-tab" onclick="showSection('tournaments')">
+                <i class="fas fa-trophy"></i> Tournaments
+            </button>
+            <button class="nav-tab" onclick="showSection('leaderboard')">
+                <i class="fas fa-crown"></i> Leaderboard
+            </button>
+            <button class="nav-tab" onclick="showSection('profile')">
+                <i class="fas fa-user"></i> Profile
+            </button>
+        </nav>
 
-      <div id="chatBox"></div>
-      <input id="chatInput" placeholder="Message…">
-      <button onclick="sendChat()">Send</button>
-    </section>
-  </div>
+        <!-- Auth Section -->
+        <section id="auth" class="section active">
+            <div class="auth-container">
+                <div class="auth-header">
+                    <h2>Welcome to Matatu Online</h2>
+                    <p>Kenya's Premier Card Gaming Platform</p>
+                </div>
+                
+                <div id="loginForm">
+                    <form class="auth-form" onsubmit="login(event)">
+                        <div class="form-group">
+                            <input type="email" class="form-input" name="email" placeholder="Email Address" required>
+                            <div class="form-error"></div>
+                        </div>
+                        <div class="form-group">
+                            <input type="password" class="form-input" name="password" placeholder="Password" required>
+                            <div class="form-error"></div>
+                        </div>
+                        <button type="submit" class="btn">
+                            <i class="fas fa-sign-in-alt"></i>
+                            Sign In
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="showRegister()">
+                            Create New Account
+                        </button>
+                    </form>
+                </div>
 
-  <script src="client.js"></script>
+                <div id="registerForm" style="display: none;">
+                    <form class="auth-form" onsubmit="register(event)">
+                        <div class="form-group">
+                            <input type="text" class="form-input" name="username" placeholder="Username" required minlength="3" maxlength="20">
+                            <div class="form-error"></div>
+                        </div>
+                        <div class="form-group">
+                            <input type="email" class="form-input" name="email" placeholder="Email Address" required>
+                            <div class="form-error"></div>
+                        </div>
+                        <div class="form-group">
+                            <input type="password" class="form-input" name="password" placeholder="Password (min 6 characters)" required minlength="6">
+                            <div class="form-error"></div>
+                        </div>
+                        <div class="form-group">
+                            <select class="form-input" name="country">
+                                <option value="Kenya">Kenya</option>
+                                <option value="Uganda">Uganda</option>
+                                <option value="Tanzania">Tanzania</option>
+                                <option value="Rwanda">Rwanda</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn">
+                            <i class="fas fa-user-plus"></i>
+                            Create Account
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="showLogin()">
+                            Back to Login
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Lobby Section -->
+        <section id="lobby" class="section">
+            <!-- Soko 24 Banner -->
+            <div class="soko-banner">
+                <h3>🛍️ Shop Soko 24 - Kenya's Marketplace</h3>
+                <p>Get amazing deals on electronics, fashion, and more while you play!</p>
+                <button class="soko-button" onclick="openSoko24()">
+                    Browse Products
+                </button>
+            </div>
+
+            <div class="lobby-grid">
+                <div class="lobby-card">
+                    <h3><i class="fas fa-bolt"></i> Quick Match</h3>
+                    <p>Find players of similar skill level</p>
+                    
+                    <div class="skill-selector">
+                        <div class="skill-option selected" data-skill="any">Any Level</div>
+                        <div class="skill-option" data-skill="beginner">Beginner</div>
+                        <div class="skill-option" data-skill="intermediate">Intermediate</div>
+                        <div class="skill-option" data-skill="advanced">Advanced</div>
+                    </div>
+                    
+                    <button class="btn" onclick="quickMatch()">
+                        <i class="fas fa-search"></i>
+                        Find Game
+                    </button>
+                </div>
+
+                <div class="lobby-card">
+                    <h3><i class="fas fa-users"></i> Private Room</h3>
+                    <p>Play with friends using a room code</p>
+                    
+                    <div class="form-group">
+                        <input type="text" class="form-input" id="roomCodeInput" placeholder="Enter room code" maxlength="10">
+                    </div>
+                    
+                    <button class="btn" onclick="joinRoom()">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Join Room
+                    </button>
+                    
+                    <button class="btn btn-secondary" onclick="createRoom()">
+                        <i class="fas fa-plus"></i>
+                        Create Room
+                    </button>
+                </div>
+
+                <div class="lobby-card">
+                    <h3><i class="fas fa-trophy"></i> Featured Tournament</h3>
+                    <div id="featuredTournament">
+                        <div class="tournament-info">
+                            <div class="tournament-info-item">
+                                <div class="tournament-info-label">Prize Pool</div>
+                                <div class="tournament-info-value">15,000 Points</div>
+                            </div>
+                            <div class="tournament-info-item">
+                                <div class="tournament-info-label">Players</div>
+                                <div class="tournament-info-value">8/16</div>
+                            </div>
+                        </div>
+                        <div class="tournament-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 50%;"></div>
+                            </div>
+                        </div>
+                        <button class="btn" onclick="joinFeaturedTournament()">
+                            <i class="fas fa-trophy"></i>
+                            Join Tournament
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lobby-card">
+                <h3><i class="fas fa-list"></i> Active Rooms</h3>
+                <div id="roomList">
+                    <div class="text-center">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        Loading rooms...
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Game Section -->
+        <section id="game" class="section">
+            <div class="game-container">
+                <div class="game-info">
+                    <div class="game-timer">
+                        <div class="timer-circle" id="timerCircle">5:00</div>
+                        <span>Time Left</span>
+                    </div>
+                    <div>
+                        <span id="roomInfo">Room: </span>
+                    </div>
+                    <div>
+                        <span id="currentTurnInfo">Waiting for players...</span>
+                    </div>
+                </div>
+
+                <div id="opponents" class="opponents-container">
+                    <!-- Opponents will be populated dynamically -->
+                </div>
+
+                <div class="table-center">
+                    <div class="deck-pile">
+                        <div class="pile-label">Deck (<span id="deckCount">0</span>)</div>
+                        <div class="card back large" onclick="drawCard()"></div>
+                    </div>
+                    
+                    <div id="topCard" class="card large">
+                        <div class="pile-label">Top Card</div>
+                    </div>
+
+                    <div class="discard-pile">
+                        <div class="pile-label">Discard</div>
+                        <div class="card back large"></div>
+                    </div>
+                </div>
+
+                <div class="player-hand-container">
+                    <div class="hand-header">
+                        <div class="hand-label">Your Hand</div>
+                        <button id="matatuButton" class="matatu-button" onclick="callMatatu()">
+                            <i class="fas fa-exclamation"></i>
+                            MATATU!
+                        </button>
+                    </div>
+                    <div id="playerHand" class="player-hand">
+                        <!-- Player cards will be populated dynamically -->
+                    </div>
+                </div>
+
+                <div class="game-controls">
+                    <button class="btn" onclick="drawCard()">
+                        <i class="fas fa-plus"></i>
+                        Draw Card
+                    </button>
+                    <button class="btn btn-secondary" onclick="leaveGame()">
+                        <i class="fas fa-door-open"></i>
+                        Leave Game
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Other sections would continue here... -->
+    </div>
+
+    <!-- Chat System -->
+    <button id="chatToggle" class="chat-toggle" onclick="toggleChat()">
+        <i class="fas fa-comments"></i>
+    </button>
+
+    <div id="chatContainer" class="chat-container">
+        <div class="chat-header">
+            <span>Game Chat</span>
+            <button class="chat-close" onclick="toggleChat()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="chatMessages" class="chat-messages">
+            <!-- Chat messages will be populated dynamically -->
+        </div>
+        <div class="chat-input-container">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." onkeypress="sendChatOnEnter(event)" maxlength="200">
+            <button class="chat-send" onclick="sendChat()">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let socket = null;
+        let currentUser = null;
+        let currentRoom = null;
+        let gameState = {
+            players: [],
+            currentPlayer: null,
+            myHand: [],
+            topCard: null,
+            gameStarted: false,
+            gameType: 'casual'
+        };
+        let chatOpen = false;
+        let selectedSkill = 'any';
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeApp();
+        });
+
+        async function initializeApp() {
+            showLoading();
+            
+            // Simulate loading progress
+            const progressBar = document.getElementById('loadingProgressBar');
+            let progress = 0;
+            const loadingInterval = setInterval(() => {
+                progress += Math.random() * 30;
+                if (progress > 90) progress = 90;
+                progressBar.style.width = progress + '%';
+            }, 200);
+
+            // Check for stored auth token
+            const token = localStorage.getItem('matatuToken');
+            if (token) {
+                try {
+                    const userData = JSON.parse(localStorage.getItem('matatuUser'));
+                    if (userData) {
+                        currentUser = userData;
+                        await initializeSocket();
+                        showMainApp();
+                    }
+                } catch (error) {
+                    console.error('Error loading stored user data:', error);
+                    localStorage.removeItem('matatuToken');
+                    localStorage.removeItem('matatuUser');
+                }
+            }
+
+            // Complete loading
+            setTimeout(() => {
+                clearInterval(loadingInterval);
+                progressBar.style.width = '100%';
+                setTimeout(hideLoading, 500);
+            }, 1500);
+        }
+
+        function showLoading() {
+            document.getElementById('loadingScreen').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingScreen').classList.add('hidden');
+        }
+
+        // Authentication functions
+        async function login(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            const email = formData.get('email');
+            const password = formData.get('password');
+
+            if (!email || !password) {
+                showError('Please fill in all fields');
+                return;
+            }
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...';
+            submitButton.disabled = true;
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('matatuToken', data.token);
+                    localStorage.setItem('matatuUser', JSON.stringify(data.user));
+                    currentUser = data.user;
+                    
+                    await initializeSocket();
+                    showMainApp();
+                    showSuccess(`Welcome back, ${data.user.username}!`);
+                } else {
+                    showError(data.message || 'Login failed');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('Connection error. Please try again.');
+            } finally {
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            }
+        }
+
+        async function register(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            const username = formData.get('username');
+            const email = formData.get('email');
+            const password = formData.get('password');
+            const country = formData.get('country');
+
+            if (!username || !email || !password) {
+                showError('Please fill in all fields');
+                return;
+            }
+
+            if (username.length < 3) {
+                showError('Username must be at least 3 characters');
+                return;
+            }
+
+            if (password.length < 6) {
+                showError('Password must be at least 6 characters');
+                return;
+            }
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
+            submitButton.disabled = true;
+
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, email, password, country })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('matatuToken', data.token);
+                    localStorage.setItem('matatuUser', JSON.stringify(data.user));
+                    currentUser = data.user;
+                    
+                    await initializeSocket();
+                    showMainApp();
+                    showSuccess(`Welcome to Matatu Online, ${data.user.username}! You've received 1500 bonus points!`);
+                } else {
+                    showError(data.message || 'Registration failed');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError('Connection error. Please try again.');
+            } finally {
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+        }
+
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+        }
+
+        function showMainApp() {
+            document.getElementById('auth').classList.remove('active');
+            document.getElementById('header').classList.remove('hidden');
+            document.getElementById('userInfo').classList.remove('hidden');
+            document.getElementById('navigation').classList.remove('hidden');
+            
+            // Update user info
+            document.getElementById('userPoints').textContent = currentUser.points.toLocaleString();
+            
+            // Show lobby by default
+            showSection('lobby');
+        }
+
+        function logout() {
+            localStorage.removeItem('matatuToken');
+            localStorage.removeItem('matatuUser');
+            currentUser = null;
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            
+            // Reset UI
+            document.getElementById('auth').classList.add('active');
+            document.getElementById('header').classList.add('hidden');
+            document.getElementById('userInfo').classList.add('hidden');
+            document.getElementById('navigation').classList.add('hidden');
+            
+            // Hide all sections except auth
+            document.querySelectorAll('.section').forEach(section => {
+                if (section.id !== 'auth') section.classList.remove('active');
+            });
+            
+            showSuccess('Logged out successfully');
+        }
+
+        // Socket.IO functions
+        async function initializeSocket() {
+            try {
+                socket = io('/', {
+                    auth: {
+                        token: localStorage.getItem('matatuToken')
+                    }
+                });
+                
+                socket.on('connect', () => {
+                    console.log('Connected to server');
+                    socket.emit('userAuth', currentUser);
+                });
+
+                socket.on('disconnect', () => {
+                    console.log('Disconnected from server');
+                    showWarning('Connection lost. Attempting to reconnect...');
+                });
+
+                socket.on('reconnect', () => {
+                    showSuccess('Reconnected to server');
+                });
+
+                // Game event listeners
+                socket.on('roomJoined', (data) => {
+                    currentRoom = data.room;
+                    gameState = { ...gameState, ...data.gameState };
+                    showSection('game');
+                    updateGameUI();
+                    document.getElementById('roomInfo').textContent = `Room: ${currentRoom}`;
+                    showSuccess(`Joined room: ${currentRoom}`);
+                });
+
+                socket.on('gameStateUpdate', (data) => {
+                    gameState = { ...gameState, ...data };
+                    updateGameUI();
+                });
+
+                socket.on('cardPlayed', (data) => {
+                    showInfo(`${data.player} played ${formatCard(data.card)}`);
+                    updateGameUI();
+                });
+
+                socket.on('gameOver', (data) => {
+                    const isWinner = data.winnerId === currentUser.id;
+                    if (isWinner) {
+                        showSuccess(`🎉 Congratulations! You won the game!`);
+                        confettiEffect();
+                    } else {
+                        showInfo(`Game Over! ${data.winner} won the game.`);
+                    }
+                    
+                    setTimeout(() => {
+                        showSection('lobby');
+                        currentRoom = null;
+                    }, 3000);
+                });
+
+                socket.on('chatMessage', (data) => {
+                    addChatMessage(data.username, data.message, data.userId === currentUser.id);
+                });
+
+                socket.on('roomList', (rooms) => {
+                    updateRoomList(rooms);
+                });
+
+                socket.on('error', (data) => {
+                    showError(data.message || 'An error occurred');
+                });
+
+                socket.on('tournamentUpdate', (data) => {
+                    updateTournamentInfo(data);
+                });
+
+            } catch (error) {
+                console.error('Socket initialization error:', error);
+                showError('Failed to connect to game server');
+            }
+        }
+
+        // Navigation functions
+        function showSection(sectionName) {
+            // Update active section
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionName).classList.add('active');
+            
+            // Update active tab
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event?.target?.classList.add('active');
+
+            // Section-specific logic
+            if (sectionName === 'lobby') {
+                requestRoomList();
+            } else if (sectionName === 'tournaments') {
+                loadTournaments();
+            } else if (sectionName === 'leaderboard') {
+                loadLeaderboard();
+            }
+        }
+
+        // Game functions
+        function quickMatch() {
+            if (!socket || !currentUser) return;
+            
+            socket.emit('quickMatch', { 
+                skill: selectedSkill,
+                gameType: 'casual' 
+            });
+            showInfo('Searching for opponents...');
+        }
+
+        function createRoom() {
+            if (!socket || !currentUser) return;
+            
+            const roomName = `${currentUser.username}'s Room`;
+            socket.emit('createRoom', { 
+                name: roomName,
+                maxPlayers: 4,
+                gameType: 'private'
+            });
+        }
+
+        function joinRoom() {
+            const roomCode = document.getElementById('roomCodeInput').value.trim();
+            if (!roomCode || !socket) return;
+            
+            socket.emit('joinRoom', { roomCode });
+        }
+
+        function playCard(cardIndex) {
+            if (!socket || !currentRoom || gameState.currentPlayer !== currentUser.id) return;
+            
+            socket.emit('playCard', { 
+                room: currentRoom, 
+                cardIndex: cardIndex 
+            });
+        }
+
+        function drawCard() {
+            if (!socket || !currentRoom || gameState.currentPlayer !== currentUser.id) return;
+            
+            socket.emit('drawCard', { room: currentRoom });
+        }
+
+        function callMatatu() {
+            if (!socket || !currentRoom) return;
+            
+            socket.emit('callMatatu', { room: currentRoom });
+            showSuccess('MATATU called!');
+        }
+
+        function leaveGame() {
+            if (!socket || !currentRoom) return;
+            
+            socket.emit('leaveGame', { room: currentRoom });
+            currentRoom = null;
+            showSection('lobby');
+        }
+
+        // UI Update functions
+        function updateGameUI() {
+            updateTopCard();
+            updatePlayerHand();
+            updateOpponents();
+            updateCurrentTurn();
+            updateMatatuButton();
+            updateGameTimer();
+        }
+
+        function updateTopCard() {
+            if (!gameState.topCard) return;
+            
+            const topCardElement = document.getElementById('topCard');
+            const { suit, rank } = gameState.topCard;
+            const suitSymbol = getSuitSymbol(suit);
+            const suitClass = getSuitClass(suit);
+            
+            topCardElement.className = `card large ${suitClass}`;
+            topCardElement.innerHTML = `
+                <div class="pile-label">Top Card</div>
+                <div class="card-rank">${rank}</div>
+                <div class="card-suit">${suitSymbol}</div>
+            `;
+        }
+
+        function updatePlayerHand() {
+            const handElement = document.getElementById('playerHand');
+            handElement.innerHTML = '';
+            
+            if (!gameState.myHand) return;
+            
+            gameState.myHand.forEach((card, index) => {
+                const cardElement = createCardElement(card, index);
+                
+                // Check if card is playable
+                if (gameState.currentPlayer === currentUser.id && isCardPlayable(card, gameState.topCard)) {
+                    cardElement.classList.add('playable');
+                }
+                
+                cardElement.onclick = () => playCard(index);
+                handElement.appendChild(cardElement);
+            });
+            
+            // Update hand container style for current turn
+            const isMyTurn = gameState.currentPlayer === currentUser.id;
+            handElement.classList.toggle('my-turn', isMyTurn);
+        }
+
+        function updateOpponents() {
+            const opponentsElement = document.getElementById('opponents');
+            opponentsElement.innerHTML = '';
+            
+            if (!gameState.players) return;
+            
+            gameState.players.forEach(player => {
+                if (player.id !== currentUser.id) {
+                    const opponentElement = document.createElement('div');
+                    opponentElement.className = 'opponent';
+                    
+                    const isCurrentPlayer = player.id === gameState.currentPlayer;
+                    if (isCurrentPlayer) {
+                        opponentElement.style.borderColor = 'var(--accent-gold)';
+                        opponentElement.style.boxShadow = '0 0 15px rgba(255, 215, 0, 0.5)';
+                    }
+                    
+                    opponentElement.innerHTML = `
+                        <div class="opponent-name">${player.username}</div>
+                        <div class="opponent-level">${player.level || 'Beginner'}</div>
+                        <div class="opponent-cards">
+                            ${Array(player.cardCount || 0).fill().map(() => 
+                                '<div class="card back"></div>'
+                            ).join('')}
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">
+                            ${player.cardCount || 0} cards
+                        </div>
+                    `;
+                    
+                    opponentsElement.appendChild(opponentElement);
+                }
+            });
+        }
+
+        function updateCurrentTurn() {
+            const currentTurnInfo = document.getElementById('currentTurnInfo');
+            
+            if (!gameState.gameStarted) {
+                currentTurnInfo.textContent = 'Waiting for players...';
+                return;
+            }
+            
+            if (gameState.currentPlayer === currentUser.id) {
+                currentTurnInfo.textContent = "Your turn!";
+                currentTurnInfo.style.color = 'var(--accent-gold)';
+            } else {
+                const currentPlayerName = gameState.players?.find(p => p.id === gameState.currentPlayer)?.username || 'Unknown';
+                currentTurnInfo.textContent = `${currentPlayerName}'s turn`;
+                currentTurnInfo.style.color = 'var(--text-secondary)';
+            }
+        }
+
+        function updateMatatuButton() {
+            const matatuButton = document.getElementById('matatuButton');
+            const handCount = gameState.myHand?.length || 0;
+            
+            if (handCount <= 2 && gameState.currentPlayer === currentUser.id) {
+                matatuButton.classList.add('show');
+            } else {
+                matatuButton.classList.remove('show');
+            }
+        }
+
+        function updateGameTimer() {
+            // Timer implementation would go here
+            // This is a placeholder for the tournament timer feature
+        }
+
+        // Utility functions
+        function createCardElement(card, index) {
+            const cardElement = document.createElement('div');
+            const { suit, rank } = card;
+            const suitSymbol = getSuitSymbol(suit);
+            const suitClass = getSuitClass(suit);
+            
+            cardElement.className = `card ${suitClass} dealing`;
+            cardElement.innerHTML = `
+                <div class="card-rank">${rank}</div>
+                <div class="card-suit">${suitSymbol}</div>
+            `;
+            
+            // Remove dealing animation after delay
+            setTimeout(() => {
+                cardElement.classList.remove('dealing');
+            }, index * 100 + 100);
+            
+            return cardElement;
+        }
+
+        function getSuitSymbol(suit) {
+            const symbols = {
+                'hearts': '♥',
+                'diamonds': '♦',
+                'clubs': '♣',
+                'spades': '♠'
+            };
+            return symbols[suit] || suit;
+        }
+
+        function getSuitClass(suit) {
+            return suit;
+        }
+
+        function isCardPlayable(card, topCard) {
+            if (!topCard) return true;
+            return card.suit === topCard.suit || card.rank === topCard.rank;
+        }
+
+        function formatCard(card) {
+            if (!card) return '';
+            return `${card.rank}${getSuitSymbol(card.suit)}`;
+        }
+
+        // Chat functions
+        function toggleChat() {
+            chatOpen = !chatOpen;
+            const chatContainer = document.getElementById('chatContainer');
+            const chatToggle = document.getElementById('chatToggle');
+            
+            chatContainer.classList.toggle('open', chatOpen);
+            chatToggle.innerHTML = chatOpen ? '<i class="fas fa-times"></i>' : '<i class="fas fa-comments"></i>';
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message || !socket || !currentRoom) return;
+            
+            socket.emit('chatMessage', {
+                room: currentRoom,
+                message: message,
+                username: currentUser.username,
+                userId: currentUser.id
+            });
+            
+            input.value = '';
+        }
+
+        function sendChatOnEnter(event) {
+            if (event.key === 'Enter') {
+                sendChat();
+            }
+        }
+
+        function addChatMessage(username, message, isOwnMessage) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageElement = document.createElement('div');
+            
+            messageElement.className = `chat-message ${isOwnMessage ? 'own' : ''}`;
+            
+            if (isOwnMessage) {
+                messageElement.innerHTML = message;
+            } else {
+                messageElement.innerHTML = `
+                    <div class="chat-username">${username}</div>
+                    ${message}
+                `;
+            }
+            
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Limit chat history to 50 messages
+            while (messagesContainer.children.length > 50) {
+                messagesContainer.removeChild(messagesContainer.firstChild);
+            }
+        }
+
+        // Notification functions
+        function showSuccess(message) {
+            showNotification(message, 'success');
+        }
+
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+
+        function showInfo(message) {
+            showNotification(message, 'info');
+        }
+
+        function showWarning(message) {
+            showNotification(message, 'warning');
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideInRight 0.5s ease reverse';
+                setTimeout(() => {
+                    notification.remove();
+                }, 500);
+            }, 3000);
+        }
+
+        // Room list functions
+        function requestRoomList() {
+            if (socket) {
+                socket.emit('getRooms');
+            }
+        }
+
+        function updateRoomList(rooms) {
+            const roomListElement = document.getElementById('roomList');
+            roomListElement.innerHTML = '';
+            
+            if (!rooms || rooms.length === 0) {
+                roomListElement.innerHTML = '<div class="text-center">No active rooms</div>';
+                return;
+            }
+            
+            rooms.forEach(room => {
+                const roomElement = document.createElement('div');
+                roomElement.className = 'room-item';
+                roomElement.innerHTML = `
+                    <div class="room-info">
+                        <div class="room-name">${room.name}</div>
+                        <div class="room-details">
+                            ${room.players}/${room.maxPlayers} players
+                            ${room.gameStarted ? '(In Progress)' : '(Waiting)'}
+                        </div>
+                    </div>
+                    <button class="btn ${room.gameStarted ? 'btn-outline' : ''}" 
+                            onclick="joinRoomById('${room.id}')">
+                        ${room.gameStarted ? 'Spectate' : 'Join'}
+                    </button>
+                `;
+                roomListElement.appendChild(roomElement);
+            });
+        }
+
+        function joinRoomById(roomId) {
+            if (socket) {
+                socket.emit('joinRoomById', { roomId });
+            }
+        }
+
+        // Skill selector
+        document.addEventListener('click', (event) => {
+            if (event.target.classList.contains('skill-option')) {
+                document.querySelectorAll('.skill-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+                event.target.classList.add('selected');
+                selectedSkill = event.target.dataset.skill;
+            }
+        });
+
+        // Soko 24 Integration
+        function openSoko24() {
+            // This would open your Soko 24 marketplace
+            // For now, it's a placeholder
+            showInfo('Opening Soko 24 marketplace...');
+            // window.open('https://soko24.co.ke', '_blank');
+        }
+
+        // Tournament functions (placeholder)
+        function joinFeaturedTournament() {
+            showInfo('Tournament features coming soon!');
+        }
+
+        function loadTournaments() {
+            showInfo('Loading tournaments...');
+        }
+
+        function loadLeaderboard() {
+            showInfo('Loading leaderboard...');
+        }
+
+        // Visual effects
+        function confettiEffect() {
+            // Simple confetti effect implementation
+            // This would be enhanced with a proper confetti library
+            console.log('🎉 Confetti effect!');
+        }
+
+        // Service Worker registration for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
