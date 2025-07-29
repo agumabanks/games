@@ -1,9 +1,6 @@
-// backend/middleware/auth.js - Complete Authentication System
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const rateLimit = require('express-rate-limit');
 
-// JWT Protection Middleware
 const protect = async (req, res, next) => {
   let token;
 
@@ -39,25 +36,4 @@ const protect = async (req, res, next) => {
   }
 };
 
-// Role-based access control
-const authorize = (...roles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Access denied'
-      });
-    }
-
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied - insufficient permissions'
-      });
-    }
-
-    next();
-  };
-};
-
-module.exports = { protect, authorize };
+module.exports = { protect };

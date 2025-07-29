@@ -9,51 +9,40 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 const path = require('path');
 
-// Load environment variables
 dotenv.config();
-
-// Import configurations
 const connectDB = require('./config/db');
-const gameHandler = require('./sockets/gameHandler');
 
-// Connect to database
 connectDB();
 
 const app = express();
 
-// Security middleware
 app.use(helmet());
 app.use(compression());
 
-// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later.'
+  }
 });
-app.use('/api/', limiter);
 
-// CORS
+app.use('/api/', limiter);
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5000',
   credentials: true
 }));
-
-// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(morgan('dev'));
 
-// Logging
-app.use(morgan('combined'));
-
-// Static files
-app.use(express.static(path.join(__dirname, '../frontend/public')));
-
-// Health check
 app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -62,39 +51,60 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/games', require('./routes/games'));
 app.use('/api/tournaments', require('./routes/tournaments'));
-app.use('/api/soko24', require('./routes/soko24'));
 
-// Serve frontend
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/public/index.html'));
-});
-
-// Error handling
+// Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
+  console.error('Error:', err.stack);
+  res.status(err.status || 500).json({
     success: false,
-    message: 'Something went wrong!'
+    message: process.env.NODE_ENV === 'production' 
+      ? 'Something went wrong!' 
+      : err.message
   });
 });
 
-// Create server
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
+});
+
 const server = http.createServer(app);
 
-// Socket.IO
 const io = socketio(server, {
   cors: {
     origin: process.env.CLIENT_URL || 'http://localhost:5000',
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
-// Initialize game handler
-gameHandler(io);
+const gracefulShutdown = (signal) => {
+  console.log(`${signal} received. Shutting down gracefully...`);
+  
+  server.close(() => {
+    console.log('HTTP server closed');
+    const mongoose = require('mongoose');
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed');
+      process.exit(0);
+    });
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
+  console.log('🎮 MATATU ONLINE SERVER STARTED!');
+  console.log('=====================================');
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 URL: http://localhost:${PORT}`);
+  console.log(`📊 Health: http://localhost:${PORT}/health`);
+  console.log('=====================================');
 });
+
+module.exports = server;
