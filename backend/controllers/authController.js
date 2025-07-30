@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransporter({
   }
 });
 
-exports.register = async (req, res) => {
+const register = async (req, res) => {
   try {
     const { username, email, password, country } = req.body;
 
@@ -109,7 +109,7 @@ exports.register = async (req, res) => {
   }
 };
 
-exports.login = async (req, res) => {
+const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -161,7 +161,7 @@ exports.login = async (req, res) => {
   }
 };
 
-exports.logout = async (req, res) => {
+const logout = async (req, res) => {
   try {
     if (req.user) {
       await User.findByIdAndUpdate(req.user.id, { 
@@ -182,7 +182,7 @@ exports.logout = async (req, res) => {
   }
 };
 
-exports.getProfile = async (req, res) => {
+const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     res.json({ success: true, user });
@@ -194,7 +194,7 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-exports.updateProfile = async (req, res) => {
+const updateProfile = async (req, res) => {
   try {
     const { username, bio, country, preferences } = req.body;
     const user = await User.findById(req.user.id);
