@@ -6,6 +6,7 @@ const OrderSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+ 
   items: [{
     product: {
       type: mongoose.Schema.Types.ObjectId,
@@ -28,31 +29,37 @@ const OrderSchema = new mongoose.Schema({
       min: 0
     }
   }],
+ 
   totalAmount: {
     type: Number,
     required: true,
     min: 0
   },
+ 
   pointsUsed: {
     type: Number,
     default: 0,
     min: 0
   },
+ 
   paymentMethod: {
     type: String,
     enum: ['mpesa', 'card', 'points', 'mixed'],
     default: 'mpesa'
   },
+ 
   orderType: {
     type: String,
     enum: ['purchase', 'reward_redemption', 'tournament_prize'],
     default: 'purchase'
   },
+ 
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
     default: 'pending'
   },
+ 
   shippingAddress: {
     name: String,
     phone: String,
@@ -61,6 +68,7 @@ const OrderSchema = new mongoose.Schema({
     county: String,
     postalCode: String
   },
+ 
   paymentDetails: {
     transactionId: String,
     mpesaCode: String,
@@ -70,17 +78,17 @@ const OrderSchema = new mongoose.Schema({
       default: 'pending'
     }
   },
+ 
   tracking: {
     trackingNumber: String,
     carrier: String,
     estimatedDelivery: Date,
     deliveredAt: Date
   },
+ 
+
   notes: String,
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
+ 
   updatedAt: {
     type: Date,
     default: Date.now

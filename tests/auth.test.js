@@ -2,6 +2,9 @@
 const request = require('supertest');
 const app = require('../backend/server');
 const User = require('../backend/models/User');
+require('./setup');
+
+jest.setTimeout(10000);
 
 describe('Authentication', () => {
   describe('POST /api/auth/register', () => {

@@ -2,9 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketio = require('socket.io');
 const cors = require('cors');
-const helmet = require('helmet');
-const compression = require('compression');
-const rateLimit = require('express-rate-limit');
+const applySecurity = require('./middleware/security');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
 const path = require('path');
@@ -20,36 +18,8 @@ if (process.env.NODE_ENV !== 'test') {
 
 const app = express();
 
-// FIXED: Development-friendly Helmet configuration
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.socket.io", "https://cdnjs.cloudflare.com"],
-      imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "ws:", "wss:", "https:", "http:"],
-      fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      manifestSrc: ["'self'"],
-    },
-  },
-  crossOriginEmbedderPolicy: false,
-}));
-
-app.use(compression());
-
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again later.'
-  }
-});
-
-app.use('/api/', limiter);
+// Apply security-related middleware such as Helmet and rate limiting
+applySecurity(app);
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5000',
   credentials: true
