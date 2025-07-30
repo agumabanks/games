@@ -16,7 +16,24 @@ connectDB();
 
 const app = express();
 
-app.use(helmet());
+// FIXED: Development-friendly Helmet configuration
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.socket.io", "https://cdnjs.cloudflare.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "ws:", "wss:", "https:", "http:"],
+      fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      manifestSrc: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+
 app.use(compression());
 
 const limiter = rateLimit({
@@ -37,6 +54,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
+// Serve static files
+app.use(express.static(path.join(__dirname, '../frontend/public')));
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
 app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
@@ -52,6 +73,11 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/games', require('./routes/games'));
 app.use('/api/tournaments', require('./routes/tournaments'));
 
+// Serve frontend for root
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/public/index.html'));
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);
@@ -63,11 +89,15 @@ app.use((err, req, res, next) => {
   });
 });
 
+// 404 handler - serve frontend for non-API routes
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
-  });
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      success: false,
+      message: 'Route not found'
+    });
+  }
+  res.sendFile(path.join(__dirname, '../frontend/public/index.html'));
 });
 
 const server = http.createServer(app);
