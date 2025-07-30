@@ -86,15 +86,13 @@ const OrderSchema = new mongoose.Schema({
     deliveredAt: Date
   },
  
-
-  notes: String,
- 
   updatedAt: {
     type: Date,
     default: Date.now
   }
 });
 
+ 
 OrderSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();

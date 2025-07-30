@@ -1,6 +1,5 @@
 const Product = require('../models/Product');
-const User = require('../models/User');
-const Order = require('../models/Order');
+ 
 
 class Soko24Integration {
   constructor(io) {
@@ -96,8 +95,7 @@ class Soko24Integration {
   }
 
   findUserSocket(userId) {
-    // Implementation to find user's socket connection
-    // This would depend on how you're tracking connected users
+   
     for (const [socketId, socket] of this.io.sockets.sockets) {
       if (socket.userId === userId.toString()) {
         return socket;
