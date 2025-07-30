@@ -12,7 +12,9 @@ const path = require('path');
 dotenv.config();
 const connectDB = require('./config/db');
 
-connectDB();
+if (process.env.NODE_ENV !== 'test') {
+  connectDB();
+}
 
 const app = express();
 
