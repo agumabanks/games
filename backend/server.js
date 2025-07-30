@@ -11,8 +11,12 @@ const path = require('path');
 
 dotenv.config();
 const connectDB = require('./config/db');
+const gameHandler = require('./sockets/gameHandler');
+const Soko24Integration = require('./utils/socketIntegration');
 
-connectDB();
+if (process.env.NODE_ENV !== 'test') {
+  connectDB();
+}
 
 const app = express();
 
@@ -109,6 +113,10 @@ const io = socketio(server, {
     credentials: true
   }
 });
+
+// Initialize socket integrations
+const gameHandlerInstance = gameHandler(io);
+const soko24Integration = new Soko24Integration(io);
 
 const gracefulShutdown = (signal) => {
   console.log(`${signal} received. Shutting down gracefully...`);
